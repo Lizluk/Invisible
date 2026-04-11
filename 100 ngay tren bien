@@ -1,6 +1,6 @@
--- Create LocalScripts in Tools
+-- Clone LocalScripts - Xóa clones, giữ gốc
 -- M = Mở menu
--- Tạo x10/x20/x30/x40/x50 LocalScripts MỚI vào Tools
+-- Clone x10/x20/x30/x40/x50 hoặc Xóa TẤT CẢ clones (giữ 1 gốc)
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -31,74 +31,112 @@ local function getAllTools()
 end
 
 -- =============================================
--- TẠO LOCALSCRIPTS MỚI VÀO TOOLS
+-- CLONE LOCALSCRIPTS
 -- =============================================
-local function createLocalScripts(quantity)
+local function cloneLocalScripts(multiplier)
     local tools = getAllTools()
-    local totalCreated = 0
+    local totalCloned = 0
     
     print("\n" .. string.rep("=", 70))
-    print("CREATING NEW LOCALSCRIPTS - Quantity: x" .. quantity)
+    print("CLONING LOCALSCRIPTS - Multiplier: x" .. multiplier)
     print(string.rep("=", 70))
     
     for _, tool in pairs(tools) do
         print("\n[Tool] " .. tool.Name)
-        local createdCount = 0
+        local scriptCount = 0
+        local clonedCount = 0
         
-        -- Tạo LocalScripts mới
-        for i = 1, quantity do
-            local newScript = Instance.new("LocalScript")
-            newScript.Name = "LocalScript"
-            newScript.Source = ""  -- Empty script
-            newScript.Parent = tool
-            
-            createdCount = createdCount + 1
-            totalCreated = totalCreated + 1
+        -- Tìm tất cả LocalScripts trong tool
+        local scripts = {}
+        for _, script in pairs(tool:GetDescendants()) do
+            if script:IsA("LocalScript") then
+                table.insert(scripts, script)
+                scriptCount = scriptCount + 1
+            end
         end
         
-        print(string.format("  ✓ Created %d new LocalScripts", createdCount))
+        print(string.format("  Found %d LocalScript(s)", scriptCount))
+        
+        -- Clone mỗi script (multiplier - 1) lần (vì đã có 1 gốc)
+        for _, originalScript in pairs(scripts) do
+            local originalName = originalScript.Name
+            print(string.format("  → Cloning: %s", originalName))
+            
+            for i = 1, multiplier - 1 do
+                local clone = originalScript:Clone()
+                clone.Name = originalName  -- Giữ nguyên tên (để dễ xóa sau)
+                clone.Parent = originalScript.Parent
+                clonedCount = clonedCount + 1
+                totalCloned = totalCloned + 1
+            end
+            
+            print(string.format("    ✓ Created %d clones (all named '%s')", 
+                multiplier - 1, originalName))
+        end
+        
+        print(string.format("  Total cloned: %d scripts", clonedCount))
     end
     
     print("\n" .. string.rep("=", 70))
-    print(string.format("Total %d new LocalScripts created!", totalCreated))
+    print(string.format("Total %d LocalScripts cloned!", totalCloned))
     print(string.rep("=", 70))
     
-    return totalCreated
+    return totalCloned
 end
 
 -- =============================================
--- XÓA TẤT CẢ LOCALSCRIPTS
+-- XÓA CLONES - GIỮ 1 GỐC
 -- =============================================
-local function deleteAllLocalScripts()
+local function deleteClonedScripts()
     local tools = getAllTools()
     local totalDeleted = 0
     
     print("\n" .. string.rep("=", 70))
-    print("DELETING ALL LOCALSCRIPTS")
+    print("DELETING CLONED LOCALSCRIPTS (Keeping 1 original per script)")
     print(string.rep("=", 70))
     
     for _, tool in pairs(tools) do
         print("\n[Tool] " .. tool.Name)
         local deletedCount = 0
         
-        -- Xóa TẤT CẢ LocalScript
+        -- Group scripts theo tên
+        local scriptsByName = {}
         for _, script in pairs(tool:GetDescendants()) do
             if script:IsA("LocalScript") then
-                script:Destroy()
-                deletedCount = deletedCount + 1
-                totalDeleted = totalDeleted + 1
+                local name = script.Name
+                if not scriptsByName[name] then
+                    scriptsByName[name] = {}
+                end
+                table.insert(scriptsByName[name], script)
+            end
+        end
+        
+        -- Với mỗi nhóm: GIỮ 1 ĐẦU TIÊN, XÓA CÒN LẠI
+        for name, scripts in pairs(scriptsByName) do
+            if #scripts > 1 then
+                print(string.format("  → Found %d x '%s'", #scripts, name))
+                
+                -- Giữ script đầu tiên (index 1), xóa từ index 2 trở đi
+                for i = 2, #scripts do
+                    scripts[i]:Destroy()
+                    deletedCount = deletedCount + 1
+                    totalDeleted = totalDeleted + 1
+                end
+                
+                print(string.format("    ✓ Deleted %d clones (kept 1 original)", #scripts - 1))
             end
         end
         
         if deletedCount == 0 then
-            print("  No LocalScripts found")
+            print("  No duplicates found")
         else
-            print(string.format("  ✓ Deleted %d LocalScripts", deletedCount))
+            print(string.format("  Total deleted: %d scripts", deletedCount))
         end
     end
     
     print("\n" .. string.rep("=", 70))
-    print(string.format("Total %d LocalScripts deleted!", totalDeleted))
+    print(string.format("Total %d clones deleted!", totalDeleted))
+    print("Original scripts preserved ✅")
     print(string.rep("=", 70))
     
     return totalDeleted
@@ -108,7 +146,7 @@ end
 -- GUI MENU
 -- =============================================
 local sg = Instance.new("ScreenGui")
-sg.Name = "CreateScriptsGui"
+sg.Name = "CloneScriptsGui"
 sg.ResetOnSpawn = false
 sg.Parent = player:WaitForChild("PlayerGui")
 
@@ -124,17 +162,17 @@ mainFrame.Parent = sg
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
 local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(100, 200, 255)
+stroke.Color = Color3.fromRGB(255, 100, 255)
 stroke.Thickness = 3
 
 -- Title
 local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 50)
 title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-title.Text = "✨ Create LocalScripts in Tools"
+title.BackgroundColor3 = Color3.fromRGB(150, 50, 150)
+title.Text = "📋 Clone LocalScripts"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 22
+title.TextSize = 24
 title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
 
@@ -142,19 +180,20 @@ Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
 -- Info
 local info = Instance.new("TextLabel")
-info.Size = UDim2.new(1, -20, 0, 65)
+info.Size = UDim2.new(1, -20, 0, 70)
 info.Position = UDim2.new(0, 10, 0, 60)
 info.BackgroundTransparency = 1
-info.Text = "Tạo LocalScripts MỚI vào Tools\n(Không clone, tạo từ đầu)\nTất cả đều tên 'LocalScript'"
+info.Text = "Nhân bản LocalScripts trong tools\n(Giữ nguyên tên gốc)\nXóa chỉ xóa clones, giữ 1 gốc"
 info.TextColor3 = Color3.fromRGB(200, 200, 200)
 info.TextSize = 15
 info.Font = Enum.Font.Gotham
 info.TextWrapped = true
+info.TextYAlignment = Enum.TextYAlignment.Top
 info.Parent = mainFrame
 
--- Create Buttons
-local buttonY = 135
-local quantities = {10, 20, 30, 40, 50}
+-- Clone Buttons
+local buttonY = 140
+local multipliers = {10, 20, 30, 40, 50}
 local colors = {
     Color3.fromRGB(50, 150, 50),
     Color3.fromRGB(50, 100, 200),
@@ -163,34 +202,34 @@ local colors = {
     Color3.fromRGB(200, 50, 50),
 }
 
-for i, qty in pairs(quantities) do
+for i, mult in pairs(multipliers) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 170, 0, 38)
     btn.Position = UDim2.new(0.5, -85, 0, buttonY)
     btn.BackgroundColor3 = colors[i]
-    btn.Text = string.format("✨ Create x%d Scripts", qty)
+    btn.Text = string.format("📋 Clone x%d", mult)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 17
+    btn.TextSize = 18
     btn.Font = Enum.Font.GothamBold
     btn.Parent = mainFrame
     
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
     btn.MouseButton1Click:Connect(function()
-        local count = createLocalScripts(qty)
+        local count = cloneLocalScripts(mult)
         mainFrame.Visible = false
         
         game.StarterGui:SetCore("SendNotification", {
-            Title = "✨ Scripts Created!",
+            Title = "✅ Scripts Cloned!",
             Duration = 3,
-            Text = string.format("Created %d new LocalScripts\nin your Tools!", count),
+            Text = string.format("Created %d clones\nAll named 'LocalScript'", count),
         })
     end)
     
     buttonY = buttonY + 42
 end
 
--- Separator Line
+-- Separator
 local separator = Instance.new("Frame")
 separator.Size = UDim2.new(1, -40, 0, 2)
 separator.Position = UDim2.new(0, 20, 0, buttonY + 8)
@@ -198,14 +237,14 @@ separator.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 separator.BorderSizePixel = 0
 separator.Parent = mainFrame
 
--- DELETE ALL BUTTON
+-- DELETE BUTTON
 local deleteBtn = Instance.new("TextButton")
-deleteBtn.Size = UDim2.new(0, 280, 0, 48)
-deleteBtn.Position = UDim2.new(0.5, -140, 0, buttonY + 25)
+deleteBtn.Size = UDim2.new(0, 300, 0, 50)
+deleteBtn.Position = UDim2.new(0.5, -150, 0, buttonY + 25)
 deleteBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
-deleteBtn.Text = "🗑️ XÓA TẤT CẢ LOCALSCRIPTS"
+deleteBtn.Text = "🗑️ XÓA CLONES (Giữ 1 gốc)"
 deleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-deleteBtn.TextSize = 19
+deleteBtn.TextSize = 18
 deleteBtn.Font = Enum.Font.GothamBold
 deleteBtn.Parent = mainFrame
 
@@ -216,13 +255,13 @@ deleteStroke.Color = Color3.fromRGB(255, 100, 100)
 deleteStroke.Thickness = 3
 
 deleteBtn.MouseButton1Click:Connect(function()
-    local count = deleteAllLocalScripts()
+    local count = deleteClonedScripts()
     mainFrame.Visible = false
     
     game.StarterGui:SetCore("SendNotification", {
-        Title = "🗑️ All Scripts Deleted!",
+        Title = "🗑️ Clones Deleted!",
         Duration = 3,
-        Text = string.format("Deleted %d LocalScripts\nfrom all Tools", count),
+        Text = string.format("Deleted %d clones\nKept 1 original per script ✅", count),
     })
 end)
 
@@ -253,12 +292,12 @@ statusLabel.BorderSizePixel = 0
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.TextSize = 19
 statusLabel.Font = Enum.Font.GothamBold
-statusLabel.Text = "[M] Create/Delete Scripts"
+statusLabel.Text = "[M] Clone/Delete Scripts"
 statusLabel.Parent = sg
 
 Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 10)
 local statusStroke = Instance.new("UIStroke", statusLabel)
-statusStroke.Color = Color3.fromRGB(100, 200, 255)
+statusStroke.Color = Color3.fromRGB(255, 100, 255)
 statusStroke.Thickness = 2
 
 -- =============================================
@@ -273,14 +312,17 @@ UserInputService.InputBegan:Connect(function(input, chat)
 end)
 
 -- Init
-print("=== Create LocalScripts in Tools ===")
+print("=== Clone/Delete LocalScripts ===")
 print("Press [M] to open menu")
-print("Options:")
-print("  • Create x10/x20/x30/x40/x50 new LocalScripts")
-print("  • Delete ALL LocalScripts from Tools")
+print("\nOptions:")
+print("  • Clone x10/x20/x30/x40/x50")
+print("  • Delete all clones (keep 1 original per script)")
+print("\nHow it works:")
+print("  1. Clone: Creates duplicates of ALL LocalScripts")
+print("  2. Delete: Removes ONLY clones, keeps first script of each name")
 
 game.StarterGui:SetCore("SendNotification", {
-    Title = "✨ Create Scripts Ready",
+    Title = "📋 Clone/Delete Ready",
     Duration = 4,
-    Text = "[M] Open menu\nCreate NEW LocalScripts!",
+    Text = "[M] Open menu\nClone OR Delete scripts!",
 })
