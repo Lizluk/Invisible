@@ -1,191 +1,121 @@
--- Inject Scripts to Tool
+-- Create LocalScripts in Tools
 -- M = Mở menu
--- Tạo LocalScripts CÓ CODE vào tool để tạo hiệu ứng
+-- Tạo x10/x20/x30/x40/x50 LocalScripts MỚI vào Tools
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
 local character = player.Character or player.CharacterAdded:Wait()
-local mouse = player:GetMouse()
 
 -- =============================================
--- TÌM TOOL ĐANG CẦM
+-- TÌM TẤT CẢ TOOLS
 -- =============================================
-local function getEquippedTool()
-    for _, obj in pairs(character:GetChildren()) do
-        if obj:IsA("Tool") then
-            return obj
+local function getAllTools()
+    local tools = {}
+    
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            table.insert(tools, tool)
         end
     end
-    return nil
-end
-
--- =============================================
--- SCRIPT TEMPLATES (CODE THẬT)
--- =============================================
-local scriptTemplates = {
-    -- AUTO CLICK (Tự động click liên tục)
-    AutoClick = [[
-local tool = script.Parent
-local player = game:GetService("Players").LocalPlayer
-local mouse = player:GetMouse()
-
-tool.Activated:Connect(function()
-    -- Tool được activate
-end)
-
--- Auto activate liên tục
-while wait(0.01) do
-    if tool.Parent == player.Character then
-        tool:Activate()
-    end
-end
-]],
-
-    -- RAPID FIRE (Bắn/dùng nhanh)
-    RapidFire = [[
-local tool = script.Parent
-tool.Activated:Connect(function()
-    -- Fire multiple times
-    for i = 1, 5 do
-        tool:Activate()
-        wait(0.01)
-    end
-end)
-]],
-
-    -- DAMAGE BOOST (Tìm và tăng damage)
-    DamageBoost = [[
-local tool = script.Parent
-
--- Tìm damage values và nhân lên
-for _, obj in pairs(tool:GetDescendants()) do
-    if obj:IsA("NumberValue") or obj:IsA("IntValue") then
-        local name = obj.Name:lower()
-        if name:find("damage") or name:find("power") then
-            obj.Value = obj.Value * 10
+    
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") then
+            table.insert(tools, tool)
         end
     end
+    
+    return tools
 end
-]],
-
-    -- AUTO EQUIP (Tự động cầm lại khi rơi)
-    AutoEquip = [[
-local tool = script.Parent
-local player = game:GetService("Players").LocalPlayer
-
-tool.AncestryChanged:Connect(function()
-    if tool.Parent == player.Backpack then
-        task.wait(0.1)
-        player.Character.Humanoid:EquipTool(tool)
-    end
-end)
-]],
-
-    -- PARTICLE EFFECT (Hiệu ứng particle đẹp)
-    ParticleEffect = [[
-local tool = script.Parent
-local handle = tool:FindFirstChild("Handle")
-
-if handle then
-    local particle = Instance.new("ParticleEmitter")
-    particle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-    particle.Rate = 50
-    particle.Lifetime = NumberRange.new(1, 2)
-    particle.Speed = NumberRange.new(5, 10)
-    particle.Color = ColorSequence.new(Color3.fromRGB(255, 100, 255))
-    particle.Parent = handle
-end
-]],
-}
 
 -- =============================================
--- INJECT SCRIPTS VÀO TOOL
+-- TẠO LOCALSCRIPTS MỚI VÀO TOOLS
 -- =============================================
-local function injectScripts(scriptType, quantity)
-    local tool = getEquippedTool()
-    
-    if not tool then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "⚠️ No Tool Equipped",
-            Duration = 3,
-            Text = "Cầm tool trước!",
-        })
-        return 0
-    end
-    
-    local code = scriptTemplates[scriptType]
-    if not code then
-        print("ERROR: Script type not found!")
-        return 0
-    end
-    
+local function createLocalScripts(quantity)
+    local tools = getAllTools()
     local totalCreated = 0
     
     print("\n" .. string.rep("=", 70))
-    print("INJECTING SCRIPTS INTO: " .. tool.Name)
-    print("Script Type: " .. scriptType)
-    print("Quantity: x" .. quantity)
+    print("CREATING NEW LOCALSCRIPTS - Quantity: x" .. quantity)
     print(string.rep("=", 70))
     
-    -- Tạo scripts với code
-    for i = 1, quantity do
-        local newScript = Instance.new("LocalScript")
-        newScript.Name = scriptType .. "_" .. i
-        newScript.Source = code
-        newScript.Parent = tool
+    for _, tool in pairs(tools) do
+        print("\n[Tool] " .. tool.Name)
+        local createdCount = 0
         
-        totalCreated = totalCreated + 1
-        print(string.format("[%d] Created: %s", i, newScript.Name))
+        -- Tạo LocalScripts mới
+        for i = 1, quantity do
+            local newScript = Instance.new("LocalScript")
+            newScript.Name = "LocalScript"
+            newScript.Source = ""  -- Empty script
+            newScript.Parent = tool
+            
+            createdCount = createdCount + 1
+            totalCreated = totalCreated + 1
+        end
+        
+        print(string.format("  ✓ Created %d new LocalScripts", createdCount))
     end
     
     print("\n" .. string.rep("=", 70))
-    print(string.format("SUCCESS: Injected %d scripts!", totalCreated))
+    print(string.format("Total %d new LocalScripts created!", totalCreated))
     print(string.rep("=", 70))
     
     return totalCreated
 end
 
 -- =============================================
--- XÓA TẤT CẢ INJECTED SCRIPTS
+-- XÓA TẤT CẢ LOCALSCRIPTS
 -- =============================================
-local function deleteAllScripts()
-    local tool = getEquippedTool()
+local function deleteAllLocalScripts()
+    local tools = getAllTools()
+    local totalDeleted = 0
     
-    if not tool then
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "⚠️ No Tool",
-            Duration = 2,
-            Text = "Cầm tool trước!",
-        })
-        return 0
-    end
+    print("\n" .. string.rep("=", 70))
+    print("DELETING ALL LOCALSCRIPTS")
+    print(string.rep("=", 70))
     
-    local deleted = 0
-    
-    for _, script in pairs(tool:GetDescendants()) do
-        if script:IsA("LocalScript") then
-            script:Destroy()
-            deleted = deleted + 1
+    for _, tool in pairs(tools) do
+        print("\n[Tool] " .. tool.Name)
+        local deletedCount = 0
+        
+        -- Xóa TẤT CẢ LocalScript
+        for _, script in pairs(tool:GetDescendants()) do
+            if script:IsA("LocalScript") then
+                script:Destroy()
+                deletedCount = deletedCount + 1
+                totalDeleted = totalDeleted + 1
+            end
+        end
+        
+        if deletedCount == 0 then
+            print("  No LocalScripts found")
+        else
+            print(string.format("  ✓ Deleted %d LocalScripts", deletedCount))
         end
     end
     
-    return deleted
+    print("\n" .. string.rep("=", 70))
+    print(string.format("Total %d LocalScripts deleted!", totalDeleted))
+    print(string.rep("=", 70))
+    
+    return totalDeleted
 end
 
 -- =============================================
 -- GUI MENU
 -- =============================================
 local sg = Instance.new("ScreenGui")
-sg.Name = "InjectScriptsGui"
+sg.Name = "CreateScriptsGui"
 sg.ResetOnSpawn = false
 sg.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 450, 0, 550)
-mainFrame.Position = UDim2.new(0.5, -225, 0.5, -275)
+mainFrame.Size = UDim2.new(0, 400, 0, 420)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -210)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
@@ -194,16 +124,17 @@ mainFrame.Parent = sg
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
 local stroke = Instance.new("UIStroke", mainFrame)
-stroke.Color = Color3.fromRGB(255, 150, 0)
+stroke.Color = Color3.fromRGB(100, 200, 255)
 stroke.Thickness = 3
 
 -- Title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 55)
-title.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
-title.Text = "💉 Inject Scripts to Tool"
+title.Size = UDim2.new(1, 0, 0, 50)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+title.Text = "✨ Create LocalScripts in Tools"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 24
+title.TextSize = 22
 title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
 
@@ -211,131 +142,98 @@ Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
 -- Info
 local info = Instance.new("TextLabel")
-info.Size = UDim2.new(1, -20, 0, 70)
-info.Position = UDim2.new(0, 10, 0, 65)
+info.Size = UDim2.new(1, -20, 0, 65)
+info.Position = UDim2.new(0, 10, 0, 60)
 info.BackgroundTransparency = 1
-info.Text = "Tạo LocalScripts CÓ CODE vào tool!\nDùng cho tool không có script gốc"
+info.Text = "Tạo LocalScripts MỚI vào Tools\n(Không clone, tạo từ đầu)\nTất cả đều tên 'LocalScript'"
 info.TextColor3 = Color3.fromRGB(200, 200, 200)
 info.TextSize = 15
 info.Font = Enum.Font.Gotham
 info.TextWrapped = true
 info.Parent = mainFrame
 
--- Tool Preview
-local preview = Instance.new("TextLabel")
-preview.Size = UDim2.new(1, -20, 0, 35)
-preview.Position = UDim2.new(0, 10, 0, 140)
-preview.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-preview.Text = "Tool: (None)"
-preview.TextSize = 15
-preview.Font = Enum.Font.GothamBold
-preview.Parent = mainFrame
-
-Instance.new("UICorner", preview).CornerRadius = UDim.new(0, 8)
-
-game:GetService("RunService").Heartbeat:Connect(function()
-    local tool = getEquippedTool()
-    if tool then
-        preview.Text = "🎯 Tool: " .. tool.Name
-        preview.TextColor3 = Color3.fromRGB(0, 255, 150)
-    else
-        preview.Text = "⚠️ Tool: (None)"
-        preview.TextColor3 = Color3.fromRGB(255, 100, 100)
-    end
-end)
-
--- Script type buttons
-local buttonY = 185
-local scriptTypes = {
-    {name = "AutoClick", desc = "Tự động click", color = Color3.fromRGB(50, 150, 255)},
-    {name = "RapidFire", desc = "Bắn/dùng nhanh × 5", color = Color3.fromRGB(255, 100, 50)},
-    {name = "DamageBoost", desc = "Tăng damage × 10", color = Color3.fromRGB(200, 50, 50)},
-    {name = "AutoEquip", desc = "Tự động cầm lại", color = Color3.fromRGB(100, 200, 100)},
-    {name = "ParticleEffect", desc = "Hiệu ứng đẹp", color = Color3.fromRGB(200, 100, 255)},
+-- Create Buttons
+local buttonY = 135
+local quantities = {10, 20, 30, 40, 50}
+local colors = {
+    Color3.fromRGB(50, 150, 50),
+    Color3.fromRGB(50, 100, 200),
+    Color3.fromRGB(200, 150, 50),
+    Color3.fromRGB(200, 100, 50),
+    Color3.fromRGB(200, 50, 50),
 }
 
-for _, scriptData in pairs(scriptTypes) do
+for i, qty in pairs(quantities) do
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 210, 0, 38)
-    btn.Position = UDim2.new(0, 15, 0, buttonY)
-    btn.BackgroundColor3 = scriptData.color
-    btn.Text = "💉 " .. scriptData.name
+    btn.Size = UDim2.new(0, 170, 0, 38)
+    btn.Position = UDim2.new(0.5, -85, 0, buttonY)
+    btn.BackgroundColor3 = colors[i]
+    btn.Text = string.format("✨ Create x%d Scripts", qty)
     btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 16
+    btn.TextSize = 17
     btn.Font = Enum.Font.GothamBold
     btn.Parent = mainFrame
     
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
     
-    -- Description
-    local desc = Instance.new("TextLabel")
-    desc.Size = UDim2.new(0, 190, 0, 38)
-    desc.Position = UDim2.new(0, 235, 0, buttonY)
-    desc.BackgroundTransparency = 1
-    desc.Text = scriptData.desc
-    desc.TextColor3 = Color3.fromRGB(180, 180, 180)
-    desc.TextSize = 14
-    desc.Font = Enum.Font.Gotham
-    desc.TextXAlignment = Enum.TextXAlignment.Left
-    desc.Parent = mainFrame
-    
     btn.MouseButton1Click:Connect(function()
-        local count = injectScripts(scriptData.name, 10)
+        local count = createLocalScripts(qty)
+        mainFrame.Visible = false
         
-        if count > 0 then
-            mainFrame.Visible = false
-            
-            game.StarterGui:SetCore("SendNotification", {
-                Title = "💉 Scripts Injected!",
-                Duration = 3,
-                Text = string.format("%s × 10\n%s", scriptData.name, scriptData.desc),
-            })
-        end
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "✨ Scripts Created!",
+            Duration = 3,
+            Text = string.format("Created %d new LocalScripts\nin your Tools!", count),
+        })
     end)
     
-    buttonY = buttonY + 48
+    buttonY = buttonY + 42
 end
 
--- Separator
+-- Separator Line
 local separator = Instance.new("Frame")
 separator.Size = UDim2.new(1, -40, 0, 2)
-separator.Position = UDim2.new(0, 20, 0, buttonY + 10)
+separator.Position = UDim2.new(0, 20, 0, buttonY + 8)
 separator.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 separator.BorderSizePixel = 0
 separator.Parent = mainFrame
 
--- DELETE BUTTON
+-- DELETE ALL BUTTON
 local deleteBtn = Instance.new("TextButton")
-deleteBtn.Size = UDim2.new(0, 330, 0, 50)
-deleteBtn.Position = UDim2.new(0.5, -165, 0, buttonY + 30)
+deleteBtn.Size = UDim2.new(0, 280, 0, 48)
+deleteBtn.Position = UDim2.new(0.5, -140, 0, buttonY + 25)
 deleteBtn.BackgroundColor3 = Color3.fromRGB(150, 30, 30)
-deleteBtn.Text = "🗑️ XÓA TẤT CẢ SCRIPTS"
+deleteBtn.Text = "🗑️ XÓA TẤT CẢ LOCALSCRIPTS"
 deleteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 deleteBtn.TextSize = 19
 deleteBtn.Font = Enum.Font.GothamBold
 deleteBtn.Parent = mainFrame
 
 Instance.new("UICorner", deleteBtn).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", deleteBtn).Color = Color3.fromRGB(255, 100, 100)
+
+local deleteStroke = Instance.new("UIStroke", deleteBtn)
+deleteStroke.Color = Color3.fromRGB(255, 100, 100)
+deleteStroke.Thickness = 3
 
 deleteBtn.MouseButton1Click:Connect(function()
-    local count = deleteAllScripts()
+    local count = deleteAllLocalScripts()
     mainFrame.Visible = false
     
     game.StarterGui:SetCore("SendNotification", {
-        Title = "🗑️ Scripts Deleted",
-        Duration = 2,
-        Text = string.format("Deleted %d scripts", count),
+        Title = "🗑️ All Scripts Deleted!",
+        Duration = 3,
+        Text = string.format("Deleted %d LocalScripts\nfrom all Tools", count),
     })
 end)
 
 -- Close Button
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 42, 0, 42)
-closeBtn.Position = UDim2.new(1, -47, 0, 6)
+closeBtn.Size = UDim2.new(0, 38, 0, 38)
+closeBtn.Position = UDim2.new(1, -43, 0, 6)
 closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 closeBtn.Text = "✕"
-closeBtn.TextSize = 26
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.TextSize = 24
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = mainFrame
 
@@ -351,14 +249,17 @@ statusLabel.Size = UDim2.new(0, 320, 0, 55)
 statusLabel.Position = UDim2.new(0, 10, 0.5, 460)
 statusLabel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 statusLabel.BackgroundTransparency = 0.1
+statusLabel.BorderSizePixel = 0
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.TextSize = 19
 statusLabel.Font = Enum.Font.GothamBold
-statusLabel.Text = "[M] Inject Scripts Menu"
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Text = "[M] Create/Delete Scripts"
 statusLabel.Parent = sg
 
 Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", statusLabel).Color = Color3.fromRGB(255, 150, 0)
+local statusStroke = Instance.new("UIStroke", statusLabel)
+statusStroke.Color = Color3.fromRGB(100, 200, 255)
+statusStroke.Thickness = 2
 
 -- =============================================
 -- INPUT
@@ -371,25 +272,15 @@ UserInputService.InputBegan:Connect(function(input, chat)
     end
 end)
 
--- =============================================
--- RESPAWN
--- =============================================
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-end)
-
 -- Init
-print("=== Inject Scripts to Tool ===")
+print("=== Create LocalScripts in Tools ===")
 print("Press [M] to open menu")
-print("\nAvailable Scripts:")
-print("  • AutoClick - Auto activate tool")
-print("  • RapidFire - Fire 5x per click")
-print("  • DamageBoost - Increase damage × 10")
-print("  • AutoEquip - Auto re-equip tool")
-print("  • ParticleEffect - Cool visual effects")
+print("Options:")
+print("  • Create x10/x20/x30/x40/x50 new LocalScripts")
+print("  • Delete ALL LocalScripts from Tools")
 
 game.StarterGui:SetCore("SendNotification", {
-    Title = "💉 Inject Scripts Ready",
+    Title = "✨ Create Scripts Ready",
     Duration = 4,
-    Text = "Equip tool → [M] → Inject!",
+    Text = "[M] Open menu\nCreate NEW LocalScripts!",
 })
