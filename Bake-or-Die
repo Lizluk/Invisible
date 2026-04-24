@@ -1,0 +1,79 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local lp = Players.LocalPlayer
+
+local autoBringEnabled = false -- Mặc định tắt
+
+-- 1. Tạo GUI hiển thị (Để biết đang bật hay tắt)
+local sg = Instance.new("ScreenGui", lp.PlayerGui)
+sg.Name = "AutoBringGui"
+sg.ResetOnSpawn = false
+
+local btn = Instance.new("TextButton", sg)
+btn.Size = UDim2.new(0, 180, 0, 45)
+btn.Position = UDim2.new(0, 10, 0.4, 0)
+btn.BackgroundColor3 = Color3.fromRGB(150, 0, 0) -- Màu đỏ khi OFF
+btn.Text = "[V] AUTO BRING: OFF"
+btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 14
+Instance.new("UICorner", btn)
+
+-- 2. Hàm thực hiện kéo vật phẩm
+local function bringEverything()
+    local char = lp.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local folder = workspace:FindFirstChild("Interactables")
+    
+    if root and folder then
+        for _, item in pairs(folder:GetChildren()) do
+            if item:IsA("Model") and not item:FindFirstChild("ProductPriceTag") then
+                local p = item.PrimaryPart or item:FindFirstChild("HumanoidRootPart") or item:FindFirstChildWhichIsA("BasePart")
+                if p then
+                    p.CFrame = root.CFrame * CFrame.new(0, 0, -3) -- Đưa về trước mặt 3 studs
+                end
+            end
+        end
+    end
+end
+
+-- 3. Vòng lặp quét
+task.spawn(function()
+    while true do
+        if autoBringEnabled then
+            bringEverything()
+        end
+        task.wait(1.5) -- Quét mỗi 1.5 giây để tránh lag
+    end
+end)
+
+-- 4. Hàm xử lý Bật/Tắt (Toggle)
+local function toggleBring()
+    autoBringEnabled = not autoBringEnabled
+    
+    if autoBringEnabled then
+        btn.Text = "[V] AUTO BRING: ACTIVE"
+        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- Xanh khi ON
+    else
+        btn.Text = "[V] AUTO BRING: OFF"
+        btn.BackgroundColor3 = Color3.fromRGB(150, 0, 0) -- Đỏ khi OFF
+    end
+    
+    -- Thông báo nhỏ góc màn hình
+    game.StarterGui:SetCore("SendNotification", {
+        Title = "Gemini Loot",
+        Text = autoBringEnabled and "Đã BẬT tự động hút đồ!" or "Đã TẮT tự động hút đồ!",
+        Duration = 1.5
+    })
+end
+
+-- 5. Lắng nghe phím V
+UserInputService.InputBegan:Connect(function(input, chat)
+    if chat then return end -- Không chạy khi đang gõ chat
+    if input.KeyCode == Enum.KeyCode.V then
+        toggleBring()
+    end
+end)
+
+-- Cho phép bấm bằng chuột vào nút GUI luôn cho tiện
+btn.MouseButton1Click:Connect(toggleBring)
