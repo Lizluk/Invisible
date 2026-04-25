@@ -1,0 +1,61 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local lp = Players.LocalPlayer
+
+-- 1. Tạo giao diện thông báo nhỏ
+local sg = Instance.new("ScreenGui", lp.PlayerGui)
+sg.Name = "InstaKillGui"
+
+local btn = Instance.new("TextButton", sg)
+btn.Size = UDim2.new(0, 200, 0, 45)
+btn.Position = UDim2.new(0, 10, 0.1, 0) -- Nằm phía trên cùng bên trái
+btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+btn.Text = "[G] KILL ALL MONSTERS"
+btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 14
+Instance.new("UICorner", btn)
+
+-- 2. Hàm quét và diệt quái
+local function killAllMonsters()
+    local monstersFolder = workspace:FindFirstChild("Monsters")
+    
+    if monstersFolder then
+        local count = 0
+        for _, monster in pairs(monstersFolder:GetChildren()) do
+            if monster:IsA("Model") then
+                local humanoid = monster:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    -- Ép máu về 0
+                    humanoid.Health = 0
+                    count = count + 1
+                end
+            end
+        end
+        
+        -- Thông báo số lượng quái đã "xử lý"
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Gemini Slayer",
+            Text = "Đã quét sạch " .. tostring(count) .. " quái vật!",
+            Duration = 2
+        })
+        
+        -- Hiệu ứng nháy nút khi bấm thành công
+        btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        task.wait(0.2)
+        btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    else
+        warn("Không tìm thấy thư mục workspace.Monsters")
+    end
+end
+
+-- 3. Lắng nghe phím G
+UserInputService.InputBegan:Connect(function(input, chat)
+    if chat then return end
+    if input.KeyCode == Enum.KeyCode.G then
+        killAllMonsters()
+    end
+end)
+
+-- Cho phép bấm bằng chuột vào nút luôn
+btn.MouseButton1Click:Connect(killAllMonsters)
