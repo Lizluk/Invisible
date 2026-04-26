@@ -2,79 +2,67 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local lp = Players.LocalPlayer
 
-local autoKillEnabled = false -- Trạng thái ban đầu là tắt
+local autoKillEnabled = false
 
--- 1. Tạo GUI hiển thị trạng thái
+-- 1. GUI Trạng thái
 local sg = Instance.new("ScreenGui", lp.PlayerGui)
-sg.Name = "AutoKillToggleGui"
+sg.Name = "UltimateKillGui"
 sg.ResetOnSpawn = false
 
 local btn = Instance.new("TextButton", sg)
 btn.Size = UDim2.new(0, 220, 0, 45)
 btn.Position = UDim2.new(0, 10, 0.15, 0)
-btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Màu xám khi OFF
-btn.Text = "[G] AUTO KILL: OFF"
+btn.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
+btn.Text = "[G] AUTO KILL & FINISH: OFF"
 btn.TextColor3 = Color3.new(1, 1, 1)
 btn.Font = Enum.Font.GothamBold
-btn.TextSize = 14
+btn.TextSize = 13
 Instance.new("UICorner", btn)
 
--- 2. Hàm quét và diệt sạch quái (Vòng lặp)
-task.spawn(function()
-    while true do
-        if autoKillEnabled then
-            local enemyFolder = workspace:FindFirstChild("EnemyNpc")
-            if enemyFolder then
-                local enemies = enemyFolder:GetChildren()
-                for i = 1, #enemies do
-                    local enemy = enemies[i]
-                    if enemy:IsA("Model") then
-                        local hum = enemy:FindFirstChildOfClass("Humanoid")
-                        -- Chỉ diệt những con còn máu để tiết kiệm hiệu năng
-                        if hum and hum.Health > 0 then
-                            hum.Health = 0
-                        end
-                    end
-                end
-            end
-        end
-        -- Đợi 0.1 giây mỗi lần quét để không làm lag máy nhưng vẫn diệt quái cực nhanh
-        task.wait(0.1) 
-    end
-end)
-
--- 3. Hàm xử lý Bật/Tắt khi nhấn G
-local function toggleAutoKill()
-    autoKillEnabled = not autoKillEnabled
+-- 2. Hàm diệt tận gốc
+local function killAndFinish()
+    local folder = workspace:FindFirstChild("EnemyNpc")
+    if not folder then return end
     
-    if autoKillEnabled then
-        btn.Text = "[G] AUTO KILL: ACTIVE"
-        btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0) -- Màu đỏ rực khi ON
-        
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Gemini Auto-Slayer",
-            Text = "Đã BẬT chế độ tự động diệt NPC!",
-            Duration = 2
-        })
-    else
-        btn.Text = "[G] AUTO KILL: OFF"
-        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Gemini Auto-Slayer",
-            Text = "Đã TẮT chế độ tự động diệt NPC.",
-            Duration = 2
-        })
+    local enemies = folder:GetChildren()
+    for i = 1, #enemies do
+        local enemy = enemies[i]
+        if enemy:IsA("Model") then
+            local hum = enemy:FindFirstChildOfClass("Humanoid")
+            if hum then
+                -- Ép máu về số âm để phá vỡ trạng thái gục
+                hum.Health = -100 
+                
+                -- Một số game dùng thuộc tính trạng thái (State)
+                -- Chúng ta ép nhân vật sang trạng thái "Dead"
+                hum:ChangeState(Enum.HumanoidStateType.Dead)
+            end
+            
+            -- Nếu nó vẫn lì lợm không biến mất, ta "xóa" nhẹ nó đi (Chỉ có tác dụng ở máy bạn)
+            -- Nhưng thường ép Health âm là đủ để Server hiểu là đã chết hẳn.
+        end
     end
 end
 
--- 4. Lắng nghe phím G
-UserInputService.InputBegan:Connect(function(input, chat)
-    if chat then return end
-    if input.KeyCode == Enum.KeyCode.G then
-        toggleAutoKill()
+-- 3. Vòng lặp quét siêu tốc
+task.spawn(function()
+    while true do
+        if autoKillEnabled then
+            pcall(killAndFinish)
+        end
+        task.wait(0.2) -- Quét liên tục để đảm bảo không con nào kịp gục
     end
 end)
 
--- Cho phép click chuột vào nút GUI
-btn.MouseButton1Click:Connect(toggleAutoKill)
+-- 4. Bật/Tắt
+local function toggle()
+    autoKillEnabled = not autoKillEnabled
+    btn.Text = autoKillEnabled and "[G] KILL & FINISH: ACTIVE" or "[G] KILL & FINISH: OFF"
+    btn.BackgroundColor3 = autoKillEnabled and Color3.fromRGB(180, 0, 0) or Color3.fromRGB(30, 0, 0)
+end
+
+UserInputService.InputBegan:Connect(function(input, chat)
+    if not chat and input.KeyCode == Enum.KeyCode.G then toggle() end
+end)
+
+btn.MouseButton1Click:Connect(toggle)
