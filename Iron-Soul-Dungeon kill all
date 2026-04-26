@@ -1,0 +1,65 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local lp = Players.LocalPlayer
+
+-- 1. Tạo GUI thông báo
+local sg = Instance.new("ScreenGui", lp.PlayerGui)
+sg.Name = "EnemyKillAllGui"
+sg.ResetOnSpawn = false
+
+local btn = Instance.new("TextButton", sg)
+btn.Size = UDim2.new(0, 220, 0, 45)
+btn.Position = UDim2.new(0, 10, 0.15, 0)
+btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+btn.Text = "[G] INSTANT KILL ALL"
+btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 13
+Instance.new("UICorner", btn)
+
+-- 2. Hàm diệt sạch sẽ trong 1 nốt nhạc
+local function instantKill()
+    local enemyFolder = workspace:FindFirstChild("EnemyNpc")
+    
+    if enemyFolder then
+        local children = enemyFolder:GetChildren()
+        local count = 0
+        
+        -- Duyệt qua toàn bộ danh sách cùng lúc
+        for i = 1, #children do
+            local enemy = children[i]
+            if enemy:IsA("Model") then
+                local hum = enemy:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    hum.Health = 0
+                    count = count + 1
+                end
+            end
+        end
+        
+        -- Thông báo kết quả
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Gemini Nuker",
+            Text = "Đã quét sạch " .. tostring(count) .. " mục tiêu!",
+            Duration = 2
+        })
+        
+        -- Hiệu ứng nháy nút xác nhận
+        btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        task.wait(0.3)
+        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    else
+        warn("Không tìm thấy mục EnemyNpc")
+    end
+end
+
+-- 3. Lắng nghe phím G (Sử dụng InputBegan để nhận diện 1 lần nhấn)
+UserInputService.InputBegan:Connect(function(input, chat)
+    if chat then return end
+    if input.KeyCode == Enum.KeyCode.G then
+        instantKill()
+    end
+end)
+
+-- Click chuột cũng được
+btn.MouseButton1Click:Connect(instantKill)
