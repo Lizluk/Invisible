@@ -2,64 +2,79 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local lp = Players.LocalPlayer
 
--- 1. Tạo GUI thông báo
+local autoKillEnabled = false -- Trạng thái ban đầu là tắt
+
+-- 1. Tạo GUI hiển thị trạng thái
 local sg = Instance.new("ScreenGui", lp.PlayerGui)
-sg.Name = "EnemyKillAllGui"
+sg.Name = "AutoKillToggleGui"
 sg.ResetOnSpawn = false
 
 local btn = Instance.new("TextButton", sg)
 btn.Size = UDim2.new(0, 220, 0, 45)
 btn.Position = UDim2.new(0, 10, 0.15, 0)
-btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-btn.Text = "[G] INSTANT KILL ALL"
+btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) -- Màu xám khi OFF
+btn.Text = "[G] AUTO KILL: OFF"
 btn.TextColor3 = Color3.new(1, 1, 1)
 btn.Font = Enum.Font.GothamBold
-btn.TextSize = 13
+btn.TextSize = 14
 Instance.new("UICorner", btn)
 
--- 2. Hàm diệt sạch sẽ trong 1 nốt nhạc
-local function instantKill()
-    local enemyFolder = workspace:FindFirstChild("EnemyNpc")
-    
-    if enemyFolder then
-        local children = enemyFolder:GetChildren()
-        local count = 0
-        
-        -- Duyệt qua toàn bộ danh sách cùng lúc
-        for i = 1, #children do
-            local enemy = children[i]
-            if enemy:IsA("Model") then
-                local hum = enemy:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    hum.Health = 0
-                    count = count + 1
+-- 2. Hàm quét và diệt sạch quái (Vòng lặp)
+task.spawn(function()
+    while true do
+        if autoKillEnabled then
+            local enemyFolder = workspace:FindFirstChild("EnemyNpc")
+            if enemyFolder then
+                local enemies = enemyFolder:GetChildren()
+                for i = 1, #enemies do
+                    local enemy = enemies[i]
+                    if enemy:IsA("Model") then
+                        local hum = enemy:FindFirstChildOfClass("Humanoid")
+                        -- Chỉ diệt những con còn máu để tiết kiệm hiệu năng
+                        if hum and hum.Health > 0 then
+                            hum.Health = 0
+                        end
+                    end
                 end
             end
         end
-        
-        -- Thông báo kết quả
-        game.StarterGui:SetCore("SendNotification", {
-            Title = "Gemini Nuker",
-            Text = "Đã quét sạch " .. tostring(count) .. " mục tiêu!",
-            Duration = 2
-        })
-        
-        -- Hiệu ứng nháy nút xác nhận
-        btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        task.wait(0.3)
-        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    else
-        warn("Không tìm thấy mục EnemyNpc")
-    end
-end
-
--- 3. Lắng nghe phím G (Sử dụng InputBegan để nhận diện 1 lần nhấn)
-UserInputService.InputBegan:Connect(function(input, chat)
-    if chat then return end
-    if input.KeyCode == Enum.KeyCode.G then
-        instantKill()
+        -- Đợi 0.1 giây mỗi lần quét để không làm lag máy nhưng vẫn diệt quái cực nhanh
+        task.wait(0.1) 
     end
 end)
 
--- Click chuột cũng được
-btn.MouseButton1Click:Connect(instantKill)
+-- 3. Hàm xử lý Bật/Tắt khi nhấn G
+local function toggleAutoKill()
+    autoKillEnabled = not autoKillEnabled
+    
+    if autoKillEnabled then
+        btn.Text = "[G] AUTO KILL: ACTIVE"
+        btn.BackgroundColor3 = Color3.fromRGB(200, 0, 0) -- Màu đỏ rực khi ON
+        
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Gemini Auto-Slayer",
+            Text = "Đã BẬT chế độ tự động diệt NPC!",
+            Duration = 2
+        })
+    else
+        btn.Text = "[G] AUTO KILL: OFF"
+        btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        
+        game.StarterGui:SetCore("SendNotification", {
+            Title = "Gemini Auto-Slayer",
+            Text = "Đã TẮT chế độ tự động diệt NPC.",
+            Duration = 2
+        })
+    end
+end
+
+-- 4. Lắng nghe phím G
+UserInputService.InputBegan:Connect(function(input, chat)
+    if chat then return end
+    if input.KeyCode == Enum.KeyCode.G then
+        toggleAutoKill()
+    end
+end)
+
+-- Cho phép click chuột vào nút GUI
+btn.MouseButton1Click:Connect(toggleAutoKill)
