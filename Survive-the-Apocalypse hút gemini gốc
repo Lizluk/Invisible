@@ -1,62 +1,126 @@
--- CHIBAKU TENSEI - ULTIMATE FIX (GUI + PHYSICS + ANTI-STUCK)
+-- CHIBAKU TENSEI PRO - PERMANENT STORAGE EDITION
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService") -- Dùng để chuyển dữ liệu sang văn bản
 local client = Players.LocalPlayer
 
--- ĐẢM BẢO GUI HIỆN LÊN (Sử dụng PlayerGui thay vì CoreGui)
+-- FILE CONFIG
+local FILE_NAME = "MagnetPresets_Rika.json"
+local offset = { x = 0, y = 15, z = -5 } 
+local inversionEnabled = false
+local capturedParts = {}
+local savedPresets = {}
+
+-- 1. HÀM LƯU VÀ TẢI FILE (PERMANENT STORAGE)
+local function saveToFile()
+    local data = HttpService:JSONEncode(savedPresets)
+    writefile(FILE_NAME, data)
+end
+
+local function loadFromFile()
+    if isfile(FILE_NAME) then
+        local data = readfile(FILE_NAME)
+        savedPresets = HttpService:JSONDecode(data)
+    end
+end
+
+-- Tải dữ liệu ngay khi chạy script
+loadFromFile()
+
+-- 2. TẠO GUI ĐIỀU KHIỂN
 local playerGui = client:WaitForChild("PlayerGui")
 local screenGui = playerGui:FindFirstChild("MagnetUI") or Instance.new("ScreenGui")
 screenGui.Name = "MagnetUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 200, 0, 50)
-frame.Position = UDim2.new(0, 10, 1, -60)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 350, 0, 220)
+mainFrame.Position = UDim2.new(0, 10, 0.5, -110)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.BorderSizePixel = 2
+mainFrame.Active = true
+mainFrame.Draggable = true -- Cho phép bạn kéo GUI đi chỗ khác
 
-local label = Instance.new("TextLabel", frame)
-label.Size = UDim2.new(1, 0, 1, 0)
-label.Text = "(G) Magnet: OFF"
-label.TextColor3 = Color3.new(1, 0, 0)
-label.BackgroundTransparency = 1
-label.TextSize = 18
+local title = Instance.new("TextLabel", mainFrame)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "MAGNET PRO + AUTO SAVE"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 
--- BIẾN ĐIỀU KHIỂN
-local inversionEnabled = false
-local orbitRadius = 50
-local capturedParts = {}
+local controlFrame = Instance.new("Frame", mainFrame)
+controlFrame.Size = UDim2.new(0, 200, 1, -30)
+controlFrame.Position = UDim2.new(0, 0, 0, 30)
+controlFrame.BackgroundTransparency = 1
 
--- 1. KIỂM TRA AN TOÀN (Không hút đồ đang cầm, không hút người)
-local function isSafe(part)
-    if not part:IsA("BasePart") or part.Anchored then return false end
-    if part:IsDescendantOf(client.Character) then return false end -- Không hút đồ mình đang cầm
+local statusLabel = Instance.new("TextLabel", controlFrame)
+statusLabel.Size = UDim2.new(1, 0, 0, 25)
+statusLabel.Text = "Status: OFF (C)"
+statusLabel.TextColor3 = Color3.new(1, 0, 0)
+statusLabel.BackgroundTransparency = 1
+
+local function createBtn(text, pos, size, parent, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = size
+    btn.Position = pos
+    btn.Text = text
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- Các nút chỉnh vị trí
+createBtn("Up", UDim2.new(0, 70, 0, 30), UDim2.new(0, 60, 0, 30), controlFrame, function() offset.y = offset.y + 2 end)
+createBtn("Down", UDim2.new(0, 70, 0, 100), UDim2.new(0, 60, 0, 30), controlFrame, function() offset.y = offset.y - 2 end)
+createBtn("Left", UDim2.new(0, 5, 0, 65), UDim2.new(0, 60, 0, 30), controlFrame, function() offset.x = offset.x - 2 end)
+createBtn("Right", UDim2.new(0, 135, 0, 65), UDim2.new(0, 60, 0, 30), controlFrame, function() offset.x = offset.x + 2 end)
+createBtn("Far", UDim2.new(0, 70, 0, 65), UDim2.new(0, 60, 0, 30), controlFrame, function() offset.z = offset.z - 2 end)
+createBtn("Near", UDim2.new(0, 5, 0, 30), UDim2.new(0, 60, 0, 30), controlFrame, function() offset.z = offset.z + 2 end)
+
+-- KHU VỰC PRESET (Bên phải)
+local presetFrame = Instance.new("ScrollingFrame", mainFrame)
+presetFrame.Size = UDim2.new(0, 140, 1, -70)
+presetFrame.Position = UDim2.new(0, 205, 0, 35)
+presetFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
+presetFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+
+local function updatePresetList()
+    for _, v in pairs(presetFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+    local layout = presetFrame:FindFirstChild("UIListLayout") or Instance.new("UIListLayout", presetFrame)
     
-    for _, p in pairs(Players:GetPlayers()) do
-        if p.Character and part:IsDescendantOf(p.Character) then return false end
+    for i, p in pairs(savedPresets) do
+        local pBtn = Instance.new("TextButton", presetFrame)
+        pBtn.Size = UDim2.new(1, -5, 0, 25)
+        pBtn.Text = "Preset " .. i .. " (Y:" .. p.y .. ")"
+        pBtn.BackgroundColor3 = Color3.fromRGB(50, 70, 50)
+        pBtn.TextColor3 = Color3.new(1, 1, 1)
+        pBtn.MouseButton1Click:Connect(function()
+            offset = {x = p.x, y = p.y, z = p.z}
+        end)
     end
-    return true
 end
 
--- 2. ĐÁNH THỨC VẬT LÝ (Fix lỗi phải chạm mới hút)[cite: 2]
-local function wakePart(part)
-    pcall(function()
-        part.Velocity = Vector3.new(0, 0.1, 0)
-        if sethiddenproperty then
-            sethiddenproperty(client, "SimulationRadius", 1000)
-        end
-    end)
-end
+updatePresetList() -- Cập nhật danh sách từ file đã load
 
+createBtn("SAVE TO FILE", UDim2.new(0, 205, 1, -35), UDim2.new(0, 140, 0, 30), mainFrame, function()
+    table.insert(savedPresets, {x = offset.x, y = offset.y, z = offset.z})
+    saveToFile() -- Lưu xuống ổ cứng[cite: 5]
+    updatePresetList()
+end)
+
+-- 3. LOGIC HÚT VẬT THỂ[cite: 5]
 local function applyAttraction(part)
-    if not isSafe(part) or capturedParts[part] then return end
+    if not part:IsA("BasePart") or part.Anchored or capturedParts[part] then return end
+    if part:IsDescendantOf(client.Character) then return end
+    
     capturedParts[part] = true
-    wakePart(part)
+    pcall(function() part.Velocity = Vector3.new(0, 0.1, 0) end) -- Đánh thức vật lý[cite: 2]
 
     local att = Instance.new("Attachment", part)
     local lv = Instance.new("LinearVelocity", part)
-    lv.MaxForce = 1000000 
+    lv.MaxForce = 1500000 
     lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
     lv.Attachment0 = att
     
@@ -65,10 +129,9 @@ local function applyAttraction(part)
             local char = client.Character
             local rp = char and char:FindFirstChild("HumanoidRootPart")
             if rp then
-                -- Tâm hút ở trên đầu và hơi lệch về phía trước 5 studs[cite: 2]
-                local targetPos = (rp.CFrame * CFrame.new(0, 15, -5)).Position
+                local targetPos = (rp.CFrame * CFrame.new(offset.x, offset.y, offset.z)).Position
                 local dir = targetPos - part.Position
-                lv.VectorVelocity = dir.Unit * math.clamp(dir.Magnitude * 2.5, 15, 120)
+                lv.VectorVelocity = dir.Unit * math.clamp(dir.Magnitude * 3, 20, 150)
             end
             task.wait()
         end
@@ -78,29 +141,29 @@ local function applyAttraction(part)
     end)
 end
 
--- 3. LOGIC BẬT/TẮT
 local function toggle()
     inversionEnabled = not inversionEnabled
+    statusLabel.Text = inversionEnabled and "Status: ON (G)" or "Status: OFF (G)"
+    statusLabel.TextColor3 = inversionEnabled and Color3.new(0, 1, 0) or Color3.new(1, 0, 0)
+    
     if inversionEnabled then
-        label.Text = "(G) Magnet: ON"
-        label.TextColor3 = Color3.new(0, 1, 0)
-        
-        -- Quét folder DroppedItems từ cấu trúc bạn cung cấp
         local folder = workspace:FindFirstChild("DroppedItems")
         if folder then
-            for _, v in pairs(folder:GetDescendants()) do applyAttraction(v) end
-            folder.DescendantAdded:Connect(function(v)
-                if inversionEnabled then applyAttraction(v) end
-            end)
+            for _, v in pairs(folder:GetDescendants()) do 
+                if v:IsA("BasePart") then applyAttraction(v) end 
+            end
         end
-    else
-        label.Text = "(G) Magnet: OFF"
-        label.TextColor3 = Color3.new(1, 0, 0)
     end
 end
 
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.G then toggle() end
-end)
+-- Lắng nghe item mới[cite: 5]
+local folder = workspace:FindFirstChild("DroppedItems")
+if folder then
+    folder.DescendantAdded:Connect(function(v)
+        if inversionEnabled and v:IsA("BasePart") then applyAttraction(v) end
+    end)
+end
 
-print("✅ Script đã tải vào PlayerGui. Nhấn G để bật/tắt.")
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.C then toggle() end
+end)
