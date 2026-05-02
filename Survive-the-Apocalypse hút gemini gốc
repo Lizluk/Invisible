@@ -1,0 +1,106 @@
+-- CHIBAKU TENSEI - ULTIMATE FIX (GUI + PHYSICS + ANTI-STUCK)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local client = Players.LocalPlayer
+
+-- ĐẢM BẢO GUI HIỆN LÊN (Sử dụng PlayerGui thay vì CoreGui)
+local playerGui = client:WaitForChild("PlayerGui")
+local screenGui = playerGui:FindFirstChild("MagnetUI") or Instance.new("ScreenGui")
+screenGui.Name = "MagnetUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 200, 0, 50)
+frame.Position = UDim2.new(0, 10, 1, -60)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+
+local label = Instance.new("TextLabel", frame)
+label.Size = UDim2.new(1, 0, 1, 0)
+label.Text = "(G) Magnet: OFF"
+label.TextColor3 = Color3.new(1, 0, 0)
+label.BackgroundTransparency = 1
+label.TextSize = 18
+
+-- BIẾN ĐIỀU KHIỂN
+local inversionEnabled = false
+local orbitRadius = 50
+local capturedParts = {}
+
+-- 1. KIỂM TRA AN TOÀN (Không hút đồ đang cầm, không hút người)
+local function isSafe(part)
+    if not part:IsA("BasePart") or part.Anchored then return false end
+    if part:IsDescendantOf(client.Character) then return false end -- Không hút đồ mình đang cầm
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character and part:IsDescendantOf(p.Character) then return false end
+    end
+    return true
+end
+
+-- 2. ĐÁNH THỨC VẬT LÝ (Fix lỗi phải chạm mới hút)[cite: 2]
+local function wakePart(part)
+    pcall(function()
+        part.Velocity = Vector3.new(0, 0.1, 0)
+        if sethiddenproperty then
+            sethiddenproperty(client, "SimulationRadius", 1000)
+        end
+    end)
+end
+
+local function applyAttraction(part)
+    if not isSafe(part) or capturedParts[part] then return end
+    capturedParts[part] = true
+    wakePart(part)
+
+    local att = Instance.new("Attachment", part)
+    local lv = Instance.new("LinearVelocity", part)
+    lv.MaxForce = 1000000 
+    lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+    lv.Attachment0 = att
+    
+    task.spawn(function()
+        while inversionEnabled and part and part.Parent do
+            local char = client.Character
+            local rp = char and char:FindFirstChild("HumanoidRootPart")
+            if rp then
+                -- Tâm hút ở trên đầu và hơi lệch về phía trước 5 studs[cite: 2]
+                local targetPos = (rp.CFrame * CFrame.new(0, 15, -5)).Position
+                local dir = targetPos - part.Position
+                lv.VectorVelocity = dir.Unit * math.clamp(dir.Magnitude * 2.5, 15, 120)
+            end
+            task.wait()
+        end
+        if lv then lv:Destroy() end
+        if att then att:Destroy() end
+        capturedParts[part] = nil
+    end)
+end
+
+-- 3. LOGIC BẬT/TẮT
+local function toggle()
+    inversionEnabled = not inversionEnabled
+    if inversionEnabled then
+        label.Text = "(G) Magnet: ON"
+        label.TextColor3 = Color3.new(0, 1, 0)
+        
+        -- Quét folder DroppedItems từ cấu trúc bạn cung cấp
+        local folder = workspace:FindFirstChild("DroppedItems")
+        if folder then
+            for _, v in pairs(folder:GetDescendants()) do applyAttraction(v) end
+            folder.DescendantAdded:Connect(function(v)
+                if inversionEnabled then applyAttraction(v) end
+            end)
+        end
+    else
+        label.Text = "(G) Magnet: OFF"
+        label.TextColor3 = Color3.new(1, 0, 0)
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.G then toggle() end
+end)
+
+print("✅ Script đã tải vào PlayerGui. Nhấn G để bật/tắt.")
